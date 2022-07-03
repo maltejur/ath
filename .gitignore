@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/ath
+ath.so
+ath.dylib
+ath.dll
+ath.a
+ath.lib
+ath-test-*
+*.exe
+*.o
+*.obj
+*.lst
