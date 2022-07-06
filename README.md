@@ -8,12 +8,13 @@ ANSI escape sequences into HTML.
 ## Features
 
 - 3-bit, 8-bit and 24-bit color support
-- Basic SGR sequences (bold, italic, underline, blink and crossedout)
+- Basic SGR sequences (bold, italic, underline, blink, crossedout, invert, hide,
+  faint, overlined)
 - Cursor control sequences (if buffer is enabled)
 
 #### Not (yet) implemented:
 
-- SGR sequences not listed above (most notably invert and hide)
+- Obscure SGR sequences not listed above (most notably invert and hide)
 - OSC sequences
 - Some C0 control codes (like tab or backspace)
 

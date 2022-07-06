@@ -43,6 +43,7 @@ void main(string[] argv)
 void showHelp()
 {
   stdout.writefln("\033[1m\033[37math (ansi to html) cli\033[0m %s
+
 Copyright (C) 2022      Malte Jürgens <maltejur@dismail.de>
 Copyright (C) 2012-2021 Alexander Matthes (Ziz) , ziz_at_mailbox.org
 

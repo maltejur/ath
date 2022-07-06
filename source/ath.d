@@ -26,6 +26,7 @@ import std.process : Pipe, pipe;
 import std.array : join;
 import std.ascii : newline;
 import std.algorithm : max, min;
+import std.algorithm.mutation : swap;
 import core.stdc.stdio : fgetc, EOF, FILE;
 
 class AthException : Exception
@@ -70,10 +71,14 @@ private struct State
   int fc;
   int bc;
   bool bold;
+  bool faint;
   bool italic;
   bool underline;
   bool blink;
   bool crossedout;
+  bool inverted;
+  bool hidden;
+  bool overlined;
   ColorMode fc_colormode;
   ColorMode bc_colormode;
   bool fc_highlighted;
@@ -98,10 +103,14 @@ private const State defaultState = {
   fc: -1,
   bc: -1,
   bold: false,
+  faint: false,
   italic: false,
   underline: false,
   blink: false,
   crossedout: false,
+  inverted: false,
+  hidden: false,
+  overlined: false,
   fc_colormode: ColorMode.MODE_3BIT,
   bc_colormode: ColorMode.MODE_3BIT,
   fc_highlighted: false,
@@ -124,12 +133,12 @@ private int getNextChar(FILE* fp)
 private string make_rgb(int color_id)
 {
   if (color_id < 16 || color_id > 255)
-    return "000000";
+    return "#000000";
   if (color_id >= 232)
   {
     int index = color_id - 232;
     int grey = index * 256 / 24;
-    return format("%02x%02x%02x", grey, grey, grey);
+    return format("#%02x%02x%02x", grey, grey, grey);
   }
 
   int index_R = (color_id - 16) / 36;
@@ -153,7 +162,21 @@ private string make_rgb(int color_id)
   else
     rgb_B = 0;
 
-  return format("%02x%02x%02x", rgb_R, rgb_G, rgb_B);
+  return format("#%02x%02x%02x", rgb_R, rgb_G, rgb_B);
+}
+
+private void swapColors(State* state)
+{
+  state.inverted = !state.inverted;
+
+  if (state.bc_colormode == ColorMode.MODE_3BIT && state.bc == -1)
+    state.bc = -2;
+  if (state.fc_colormode == ColorMode.MODE_3BIT && state.fc == -1)
+    state.fc = -2;
+
+  swap(state.fc, state.bc);
+  swap(state.fc_colormode, state.bc_colormode);
+  swap(state.fc_highlighted, state.bc_highlighted);
 }
 
 void ansi_to_html(File input, File output, AthOptions options = AthOptions())
@@ -215,65 +238,85 @@ void ansi_to_html(File input, File output, AthOptions options = AthOptions())
       {
         output.write("<span style=\"");
 
-        if (newState.underline)
-          output.write("text-decoration:underline;");
-
         if (newState.bold)
           output.write("font-weight:bold;");
+        else if (newState.faint)
+          output.write("font-weight:lighter;");
 
         if (newState.italic)
           output.write("font-style:italic;");
 
-        if (newState.blink)
-          output.write("text-decoration:blink;");
+        if (newState.underline || newState.blink || newState.crossedout || newState.overlined)
+        {
+          output.write("text-decoration:");
 
-        if (newState.crossedout)
-          output.write("text-decoration:line-through;");
+          if (newState.underline)
+            output.write(" underline");
+          if (newState.blink)
+            output.write(" blink");
+          if (newState.crossedout)
+            output.write(" line-through");
+          if (newState.overlined)
+            output.write(" overline");
+
+          output.write(";");
+        }
+
+        if (newState.hidden)
+          output.write("opacity:0;");
 
         if (newState.fc_highlighted || newState.bc_highlighted)
           output.write("filter: contrast(70%) brightness(190%);");
 
+        const string default_fc_color = options.dark ? "lightgray" : "black";
+        string fc_color = default_fc_color;
         final switch (newState.fc_colormode)
         {
         case ColorMode.MODE_3BIT:
           if (newState.fc >= 0 && newState.fc <= 9)
-            output.writef("color:%s;", options.dark ?
-                palleteDark[newState.fc] : palleteLight[newState.fc]);
+            fc_color = options.dark ? palleteDark[newState.fc] : palleteLight[newState.fc];
           break;
 
         case ColorMode.MODE_8BIT:
           if (newState.fc >= 0 && newState.fc <= 7)
-            output.writef("color:%s;", options.dark ?
-                palleteDark[newState.fc] : palleteLight[newState.fc]);
+            fc_color = options.dark ? palleteDark[newState.fc] : palleteLight[newState.fc];
           else
-            output.writef("color:#%s;", make_rgb(newState.fc));
+            fc_color = make_rgb(newState.fc);
           break;
 
         case ColorMode.MODE_24BIT:
-          output.writef("color:#%06x;", newState.fc);
+          fc_color = format("#%06x", newState.fc);
           break;
         }
 
+        const string default_bc_color = options.dark ? "black" : "lightgray";
+        string bc_color = default_bc_color;
         final switch (newState.bc_colormode)
         {
         case ColorMode.MODE_3BIT:
           if (newState.bc >= 0 && newState.bc <= 9)
-            output.writef("background-color:%s;", options.dark ?
-                palleteDark[newState.bc] : palleteLight[newState.bc]);
+            bc_color = options.dark ? palleteDark[newState.bc] : palleteLight[newState.bc];
           break;
 
         case ColorMode.MODE_8BIT:
           if (newState.bc >= 0 && newState.bc <= 7)
-            output.writef("background-color:%s;", options.dark ?
-                palleteDark[newState.bc] : palleteLight[newState.bc]);
+            bc_color = options.dark ? palleteDark[newState.bc] : palleteLight[newState.bc];
           else
-            output.writef("background-color:#%s;", make_rgb(newState.bc));
+            bc_color = make_rgb(newState.bc);
           break;
 
         case ColorMode.MODE_24BIT:
-          output.writef("background-color:#%06x;", newState.bc);
+          bc_color = format("#%06x", newState.bc);
           break;
         }
+
+        if (newState.inverted)
+          swap(fc_color, bc_color);
+
+        if (fc_color != default_fc_color)
+          output.write(format("color:%s;", fc_color));
+        if (bc_color != default_bc_color)
+          output.write(format("background-color:%s;", bc_color));
 
         output.write("\">");
       }
@@ -490,52 +533,65 @@ void ansi_to_html(File input, File output, AthOptions options = AthOptions())
               break;
 
             case 1: // 1 - Enable Bold
-              state.bold = 1;
+              state.bold = true;
+              break;
+
+            case 2: // 2 - Enable Faint
+              state.faint = true;
               break;
 
             case 3: // 3 - Enable Italic
-              state.italic = 1;
+              state.italic = true;
               break;
 
             case 4: // 4 - Enable underline
-              state.underline = 1;
+              state.underline = true;
               break;
 
             case 5: // 5 - Slow Blink
-              state.blink = 1;
+              state.blink = true;
               break;
 
             case 7: // 7 - Inverse video
-              // TODO
+              state.inverted = true;
               break;
 
-            case 9: // 9 - Enable Crossed-out
-              state.crossedout = 1;
+            case 8: // 8 - Conceal or hide 
+              state.hidden = true;
+              break;
+
+            case 9: // 9 - Enable hide
+              state.crossedout = true;
               break;
 
             case 21: // 21 - Reset bold
             case 22: // 22 - Not bold, not "high intensity" color
-              state.bold = 0;
+              state.bold = false;
+              state.faint = false;
               break;
 
             case 23: // 23 - Reset italic
-              state.italic = 0;
+              state.italic = false;
               break;
 
             case 24: // 23 - Reset underline
-              state.underline = 0;
+              state.underline = false;
               break;
 
             case 25: // 25 - Reset blink
-              state.blink = 0;
+              state.blink = false;
               break;
 
             case 27: // 27 - Reset Inverted
-              // TODO
+              state.inverted = false;
+              break;
+
+            case 28: // 28 - Reveal
+              state.hidden = false;
               break;
 
             case 29: // 29 - Reset crossed-out
-              state.crossedout = 0;
+              state.crossedout = false;
               break;
 
             case 30:
@@ -638,6 +694,14 @@ void ansi_to_html(File input, File output, AthOptions options = AthOptions())
               state.bc_colormode = ColorMode.MODE_3BIT;
               state.bc = -1;
               state.bc_highlighted = false;
+              break;
+
+            case 53: // 53 - Overlined
+              state.overlined = true;
+              break;
+
+            case 55: // 55 - Not overlined
+              state.overlined = false;
               break;
 
             default:
