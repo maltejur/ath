@@ -40,54 +40,8 @@ commands.
 
 ## Library
 
-The library exports a single function `ansi_to_html` with three overloads:
-
-#### `string ansi_to_html(string ansi, AthOptions options)`
-
-This is the simplest one. It takes a string as a input and returns a string as a
-output.
-
-#### `File ansi_to_html(File input, AthOptions options)`
-
-This overload works with pipes in the form of `File`s. You pass it a `File` as
-the input and it returns you a `File` as a output to read. This is especially
-useful if you decide to disable the buffer (see explanation below).
-
-#### `void ansi_to_html(File input, File output, AthOptions options)`
-
-Pretty much the same as the previous overload, but this time you can pass the
-output `File` directly instead of the function creating one for you.
-
-### Optional Arguments
-
-You can pass optional arguments in the form of the `AthOptions` struct. For
-example:
-
-```d
-AthOptions options = { noPre: true };
-writeln(ansi_to_html("abc\rxy", options)); // "xyc"
-```
-
-You have the following options available:
-
-#### `bool noBuffer` (by default `false`)
-
-By default ath keeps the input stream in a buffer, allowing for cursor sequences
-to be used. Use this option to disable that behaviour and directly pass the
-input stream through. May improve performance and memory consumption. Only
-really makes sense if you use the piped version of the `ansi_to_html` function.
-
-#### `bool dark` (by default `false`)
-
-Use a dark color scheme.
-
-#### `bool document` (by default `false`)
-
-Generate a whole HTML document instead of just the `<pre>...</pre>` tag.
-
-#### `bool noPre` (by default `false`)
-
-Also leave out the `<pre>` tags.
+You can view the documentation of the library at
+https://ath.dpldocs.info/ath.html.
 
 ## Credits
 
