@@ -18,6 +18,7 @@
   with ath. If not, see <https://www.gnu.org/licenses/>. 
 */
 
+/// ath is a library for converting text containing ANSI escape sequences to HTML.
 module ath;
 
 import std.format : format;
@@ -42,24 +43,43 @@ class AthException : Exception
   }
 }
 
+/// Options for the ath library.
 struct AthOptions
 {
+  /**
+    By default ath keeps the input stream in a buffer, allowing for cursor sequences
+    to be used. Use this option to disable that behaviour and directly pass the
+    input stream through. May improve performance and memory consumption. Only
+    really makes sense if you use the piped version of the ansi_to_html function.
+  */
   bool noBuffer = false;
+
+  /**
+    Use a dark color scheme.
+  */
   bool dark = false;
+
+  /**
+    Generate a whole HTML document instead of just the <pre>...</pre> tag.
+  */
   bool document = false;
+
+  /**
+    Leave the <pre> tags out of the output.
+  */
   bool noPre = false;
 }
 
-const string[] palleteDark = [
+private const string[] palleteDark = [
   "dimgray", "red", "lime", "yellow", "#3333FF", "fuchsia", "aqua", "white",
   "black", "white"
 ];
-const string[] palleteLight = [
+private const string[] palleteLight = [
   "dimgray", "red", "green", "olive", "blue", "purple", "teal", "gray", "white",
   "black"
 ];
 
-enum ColorMode
+private enum ColorMode
 {
   MODE_3BIT,
   MODE_8BIT,
@@ -179,6 +199,11 @@ private void swapColors(State* state)
   swap(state.fc_highlighted, state.bc_highlighted);
 }
 
+/** 
+  Takes the contents of the passed input `File`, converts the 
+  contained ANSI to HTML and writes the result to the passed
+  output `File`.
+*/
 void ansi_to_html(File input, File output, AthOptions options = AthOptions())
 {
   Cell[][] buf;
@@ -777,6 +802,10 @@ void ansi_to_html(File input, File output, AthOptions options = AthOptions())
   output.close();
 }
 
+/** 
+  Takes the contents of the passed `File`, converts the 
+  contained ANSI to HTML and returns a new `File` with the result.
+*/
 File ansi_to_html(File input, AthOptions options = AthOptions())
 {
   Pipe output = pipe();
@@ -784,6 +813,9 @@ File ansi_to_html(File input, AthOptions options = AthOptions())
   return output.readEnd;
 }
 
+/**
+  Converts a string containing ANSI escape sequences to HTML.
+*/
 string ansi_to_html(string ansi, AthOptions options = AthOptions())
 {
   Pipe input = pipe();
